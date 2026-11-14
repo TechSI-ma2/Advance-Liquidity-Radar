@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SynchronizedOrderBook } from './orderBookManager';
+import { SynchronizedOrderBook, OrderBookManager } from './orderBookManager';
 import { LiquidityDetector } from './liquidityDetector';
 import { CoinbasePredictionModule } from './coinbasePredictionModule';
+import { assetToSymbol, symbolToAsset } from '../types/radar';
 
 test('SynchronizedOrderBook applies snapshot and incremental updates accurately', () => {
   const book = new SynchronizedOrderBook('BTC/USDT', 'BTC-USDT', 'SPOT', 25);
@@ -87,3 +88,46 @@ test('CoinbasePredictionModule aggregates 15m candles and computes probabilities
   assert.equal(prediction.binaryContracts.length, 3);
   assert.ok(prediction.candles.length >= 20);
 });
+
+test('OrderBookManager and CoinbasePredictionModule support Zcash (ZEC), Commodities, and Pocket Option Forex Majors', () => {
+  const manager = new OrderBookManager();
+  const mod = new CoinbasePredictionModule();
+  const allPredictions = mod.computeAllPredictions({});
+
+  const forexPairs = [
+    { symbol: 'EUR/USD', asset: 'EURUSD' },
+    { symbol: 'GBP/USD', asset: 'GBPUSD' },
+    { symbol: 'USD/JPY', asset: 'USDJPY' },
+    { symbol: 'USD/CHF', asset: 'USDCHF' },
+    { symbol: 'AUD/USD', asset: 'AUDUSD' },
+    { symbol: 'USD/CAD', asset: 'USDCAD' },
+    { symbol: 'NZD/USD', asset: 'NZDUSD' }
+  ] as const;
+
+  for (const fx of forexPairs) {
+    assert.equal(symbolToAsset(fx.symbol), fx.asset);
+    assert.equal(assetToSymbol(fx.asset), fx.symbol);
+    const book = manager.getBookBySymbol(fx.symbol);
+    assert.ok(book, `OrderBook should exist for ${fx.symbol}`);
+    assert.equal(book?.exchange, 'Pocket Option FX');
+    assert.equal(book?.marketType, 'FOREX');
+
+    const pred = allPredictions[fx.asset];
+    assert.ok(pred, `Prediction should exist for ${fx.asset}`);
+    assert.equal(pred.exchange, 'Pocket Option FX');
+    assert.equal(pred.bullishProbabilityPct + pred.bearishProbabilityPct, 100);
+    assert.ok(pred.candles.length >= 20);
+    assert.ok(pred.livePrice > 0);
+  }
+
+  for (const asset of ['ZEC', 'XAU', 'XAG', 'WTI'] as const) {
+    const pred = allPredictions[asset];
+    assert.ok(pred, `Prediction should exist for ${asset}`);
+    assert.equal(pred.asset, asset);
+    assert.equal(pred.bullishProbabilityPct + pred.bearishProbabilityPct, 100);
+    assert.ok(pred.candles.length >= 20, `Candles should be seeded for ${asset}`);
+    assert.ok(pred.livePrice > 0, `Live price should be positive for ${asset}`);
+  }
+});
+
+

@@ -13,7 +13,7 @@ interface Props {
   onSelectAsset: (asset: SupportedCryptoAsset) => void;
 }
 
-const ASSET_OPTIONS: Array<{
+const CRYPTO_ASSET_OPTIONS: Array<{
   asset: SupportedCryptoAsset;
   name: string;
   pairKey: string;
@@ -21,7 +21,33 @@ const ASSET_OPTIONS: Array<{
   { asset: 'BTC', name: 'Bitcoin (BTC)', pairKey: 'BTC/USDT' },
   { asset: 'ETH', name: 'Ethereum (ETH)', pairKey: 'ETH/USDT' },
   { asset: 'XRP', name: 'XRP (XRP)', pairKey: 'XRP/USDT' },
-  { asset: 'SOL', name: 'Solana (SOL)', pairKey: 'SOL/USDT' }
+  { asset: 'SOL', name: 'Solana (SOL)', pairKey: 'SOL/USDT' },
+  { asset: 'ZEC', name: 'Zcash (ZEC)', pairKey: 'ZEC/USDT' }
+];
+
+const COMMODITY_ASSET_OPTIONS: Array<{
+  asset: SupportedCryptoAsset;
+  name: string;
+  pairKey: string;
+}> = [
+  { asset: 'XAU', name: 'Gold (XAU/USD)', pairKey: 'XAU/USD' },
+  { asset: 'XAG', name: 'Silver (XAG/USD)', pairKey: 'XAG/USD' },
+  { asset: 'WTI', name: 'WTI Oil (WTI/USD)', pairKey: 'WTI/USD' }
+];
+
+const FOREX_ASSET_OPTIONS: Array<{
+  asset: SupportedCryptoAsset;
+  name: string;
+  pairKey: string;
+  payoutPct: number;
+}> = [
+  { asset: 'EURUSD', name: 'EUR/USD — Euro / US Dollar (92% PO)', pairKey: 'EUR/USD', payoutPct: 92 },
+  { asset: 'GBPUSD', name: 'GBP/USD — British Pound / USD (92% PO)', pairKey: 'GBP/USD', payoutPct: 92 },
+  { asset: 'USDJPY', name: 'USD/JPY — US Dollar / Yen (91% PO)', pairKey: 'USD/JPY', payoutPct: 91 },
+  { asset: 'USDCHF', name: 'USD/CHF — US Dollar / Franc (89% PO)', pairKey: 'USD/CHF', payoutPct: 89 },
+  { asset: 'AUDUSD', name: 'AUD/USD — Australian Dollar / USD (90% PO)', pairKey: 'AUD/USD', payoutPct: 90 },
+  { asset: 'USDCAD', name: 'USD/CAD — US Dollar / Canadian (88% PO)', pairKey: 'USD/CAD', payoutPct: 88 },
+  { asset: 'NZDUSD', name: 'NZD/USD — New Zealand Dollar / USD (87% PO)', pairKey: 'NZD/USD', payoutPct: 87 }
 ];
 
 export const Crypto15mPredictionChart: React.FC<Props> = ({
@@ -34,8 +60,15 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
   const [hoveredCandle, setHoveredCandle] = useState<Candle15m | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const isCommoditySelected = ['XAU', 'XAG', 'WTI'].includes(selectedAsset);
+  const forexOption = FOREX_ASSET_OPTIONS.find((f) => f.asset === selectedAsset);
+  const isForexSelected = Boolean(forexOption);
+  const displayPairLabel = forexOption ? forexOption.pairKey : `${selectedAsset}/USD`;
   const pred = predictions?.[selectedAsset];
-  const pairTelemetry = pairs?.[`${selectedAsset}/USDT`] || pairs?.[`${selectedAsset}/USD`];
+  const pairTelemetry =
+    (forexOption ? pairs?.[forexOption.pairKey] : undefined) ||
+    pairs?.[`${selectedAsset}/USDT`] ||
+    pairs?.[`${selectedAsset}/USD`];
 
   const formatPrice = (val: number) => {
     if (!val && val !== 0) return '$0.00';
@@ -355,26 +388,103 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
-      {/* Top Bar: Dropdown Selector for BTC, ETH, XRP, SOL + 15m Prediction Header */}
+      {/* Top Bar: Separate Dropdown Selectors for Crypto (incl. Zcash) and Commodities (Gold, Silver, WTI Oil) + 15m Prediction Header */}
       <div className="bg-[#0D131F] border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-5">
+        <div className="flex flex-wrap items-center gap-4">
           <div>
             <label
               htmlFor="crypto-15m-asset-select"
               className="block text-xs text-slate-400 mb-1"
             >
-              Select Crypto Asset (15m Timeframe)
+              Crypto Assets (15m Timeframe)
             </label>
             <select
               id="crypto-15m-asset-select"
               aria-label="Select Crypto Asset"
-              value={selectedAsset}
-              onChange={(e) => onSelectAsset(e.target.value as SupportedCryptoAsset)}
-              className="bg-slate-900 border border-sky-500/50 text-slate-100 text-sm font-semibold rounded-lg px-3.5 py-2 font-mono focus:outline-none focus:border-sky-400 cursor-pointer"
+              value={isCommoditySelected || isForexSelected ? '' : selectedAsset}
+              onChange={(e) => {
+                if (e.target.value) {
+                  onSelectAsset(e.target.value as SupportedCryptoAsset);
+                }
+              }}
+              className={`bg-slate-900 border text-slate-100 text-xs font-semibold rounded-lg px-3 py-2 font-mono focus:outline-none cursor-pointer transition ${
+                !isCommoditySelected && !isForexSelected
+                  ? 'border-sky-500/60 focus:border-sky-400'
+                  : 'border-slate-700 text-slate-400'
+              }`}
             >
-              {ASSET_OPTIONS.map((opt) => (
+              <option value="" disabled>
+                -- Select Crypto Asset --
+              </option>
+              {CRYPTO_ASSET_OPTIONS.map((opt) => (
                 <option key={opt.asset} value={opt.asset}>
-                  {opt.name} — 15m Chart & Prediction
+                  {opt.name} — 15m Chart
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="commodity-15m-asset-select"
+              className="block text-xs text-amber-400/90 mb-1"
+            >
+              Commodities (Gold, Silver, WTI Oil)
+            </label>
+            <select
+              id="commodity-15m-asset-select"
+              aria-label="Select Commodity Asset"
+              value={isCommoditySelected ? selectedAsset : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  onSelectAsset(e.target.value as SupportedCryptoAsset);
+                }
+              }}
+              className={`bg-slate-900 border text-slate-100 text-xs font-semibold rounded-lg px-3 py-2 font-mono focus:outline-none cursor-pointer transition ${
+                isCommoditySelected
+                  ? 'border-amber-500/60 text-amber-200 focus:border-amber-400'
+                  : 'border-slate-700 text-slate-300'
+              }`}
+            >
+              <option value="" disabled>
+                -- Select Commodity --
+              </option>
+              {COMMODITY_ASSET_OPTIONS.map((opt) => (
+                <option key={opt.asset} value={opt.asset}>
+                  {opt.name} — 15m Chart
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="forex-15m-asset-select"
+              className="block text-xs text-emerald-400/90 mb-1"
+            >
+              Forex (Pocket Option Major Pairs)
+            </label>
+            <select
+              id="forex-15m-asset-select"
+              aria-label="Select Forex Pair"
+              value={isForexSelected ? selectedAsset : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  onSelectAsset(e.target.value as SupportedCryptoAsset);
+                }
+              }}
+              className={`bg-slate-900 border text-slate-100 text-xs font-semibold rounded-lg px-3 py-2 font-mono focus:outline-none cursor-pointer transition ${
+                isForexSelected
+                  ? 'border-emerald-500/60 text-emerald-200 focus:border-emerald-400'
+                  : 'border-slate-700 text-slate-300'
+              }`}
+            >
+              <option value="" disabled>
+                -- Select Forex Pair (Pocket Option) --
+              </option>
+              {FOREX_ASSET_OPTIONS.map((opt) => (
+                <option key={opt.asset} value={opt.asset}>
+                  {opt.name}
                 </option>
               ))}
             </select>
@@ -383,7 +493,9 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
           {pred && (
             <div className="flex flex-wrap items-center gap-6 pl-4 border-l border-slate-800 font-mono tabular-nums">
               <div>
-                <div className="text-xs text-slate-400">Coinbase Live Price</div>
+                <div className="text-xs text-slate-400">
+                  {isForexSelected ? 'Pocket Option Live Rate' : 'Coinbase Live Price'}
+                </div>
                 <div className="text-lg font-bold text-white">
                   {formatPrice(pred.livePrice)}
                 </div>
@@ -437,7 +549,7 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
             <div className="text-slate-300">
               <span className="font-semibold text-slate-100">
-                {selectedAsset}/USD · 15-Minute Candlesticks
+                {displayPairLabel} · 15-Minute Candlesticks
               </span>{' '}
               · <span className="text-sky-400">EMA 9</span> ·{' '}
               <span className="text-amber-400">EMA 21</span> ·{' '}
@@ -468,16 +580,20 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Right Column: Coinbase Prediction Module Telemetry */}
+        {/* Right Column: Coinbase / Pocket Option Prediction Module Telemetry */}
         <div className="bg-[#0D131F] border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-4 font-mono tabular-nums">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h2 className="text-sm font-bold text-white">
-                  Coinbase Prediction Module
+                  {isForexSelected
+                    ? `Pocket Option FX Module (${forexOption?.payoutPct}% Payout)`
+                    : 'Coinbase Prediction Module'}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  L2 Order Flow + 15m Volatility Model
+                  {isForexSelected
+                    ? 'Pocket Option 15m CALL/PUT + L2 FX Depth Model'
+                    : 'L2 Order Flow + 15m Volatility Model'}
                 </p>
               </div>
               {pred && (

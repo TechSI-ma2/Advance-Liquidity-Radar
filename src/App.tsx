@@ -6,6 +6,11 @@ import { WallsTable } from './components/WallsTable';
 import { OrderBookPanel } from './components/OrderBookPanel';
 import { HistoricalReplay } from './components/HistoricalReplay';
 import { Crypto15mPredictionChart } from './components/Crypto15mPredictionChart';
+import {
+  assetToSymbol,
+  symbolToAsset,
+  type SupportedCryptoAsset
+} from './types/radar';
 
 type NavTab =
   | 'Overview'
@@ -30,6 +35,35 @@ const NAV_TABS: NavTab[] = [
   'Settings'
 ];
 
+const CRYPTO_DROPDOWN_PAIRS = [
+  { symbol: 'BTC/USDT', label: 'BTC/USDT — Bitcoin' },
+  { symbol: 'ETH/USDT', label: 'ETH/USDT — Ethereum' },
+  { symbol: 'XRP/USDT', label: 'XRP/USDT — XRP' },
+  { symbol: 'SOL/USDT', label: 'SOL/USDT — Solana' },
+  { symbol: 'ZEC/USDT', label: 'ZEC/USDT — Zcash' },
+  { symbol: 'BTC/USD', label: 'BTC/USD — Bitcoin (USD)' },
+  { symbol: 'ETH/USD', label: 'ETH/USD — Ethereum (USD)' },
+  { symbol: 'XRP/USD', label: 'XRP/USD — XRP (USD)' },
+  { symbol: 'SOL/USD', label: 'SOL/USD — Solana (USD)' },
+  { symbol: 'ZEC/USD', label: 'ZEC/USD — Zcash (USD)' }
+];
+
+const COMMODITY_DROPDOWN_PAIRS = [
+  { symbol: 'XAU/USD', name: 'Gold', label: 'XAU/USD — Gold' },
+  { symbol: 'XAG/USD', name: 'Silver', label: 'XAG/USD — Silver' },
+  { symbol: 'WTI/USD', name: 'WTI Oil', label: 'WTI/USD — WTI Crude Oil' }
+];
+
+const FOREX_DROPDOWN_PAIRS = [
+  { symbol: 'EUR/USD', name: 'EUR/USD', pairName: 'Euro / US Dollar', payoutPct: 92, label: 'EUR/USD — Euro / US Dollar (Pocket Option 92%)' },
+  { symbol: 'GBP/USD', name: 'GBP/USD', pairName: 'British Pound / US Dollar', payoutPct: 92, label: 'GBP/USD — British Pound / USD (Pocket Option 92%)' },
+  { symbol: 'USD/JPY', name: 'USD/JPY', pairName: 'US Dollar / Japanese Yen', payoutPct: 91, label: 'USD/JPY — US Dollar / Yen (Pocket Option 91%)' },
+  { symbol: 'USD/CHF', name: 'USD/CHF', pairName: 'US Dollar / Swiss Franc', payoutPct: 89, label: 'USD/CHF — US Dollar / Swiss Franc (Pocket Option 89%)' },
+  { symbol: 'AUD/USD', name: 'AUD/USD', pairName: 'Australian Dollar / US Dollar', payoutPct: 90, label: 'AUD/USD — Australian Dollar / USD (Pocket Option 90%)' },
+  { symbol: 'USD/CAD', name: 'USD/CAD', pairName: 'US Dollar / Canadian Dollar', payoutPct: 88, label: 'USD/CAD — US Dollar / Canadian (Pocket Option 88%)' },
+  { symbol: 'NZD/USD', name: 'NZD/USD', pairName: 'New Zealand Dollar / US Dollar', payoutPct: 87, label: 'NZD/USD — New Zealand Dollar / USD (Pocket Option 87%)' }
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('Overview');
   const [selectedSymbol, setSelectedSymbol] = useState<string>('BTC/USDT');
@@ -44,7 +78,9 @@ export default function App() {
     useLiquidityStream(browserPushEnabled);
 
   const activeTelemetry = payload?.pairs?.[selectedSymbol];
-  const overviewSymbols = ['BTC/USDT', 'ETH/USDT', 'XRP/USDT', 'SOL/USDT'];
+  const overviewSymbols = ['BTC/USDT', 'ETH/USDT', 'XRP/USDT', 'SOL/USDT', 'ZEC/USDT'];
+  const isCommoditySymbol = COMMODITY_DROPDOWN_PAIRS.some((c) => c.symbol === selectedSymbol);
+  const isForexSymbol = FOREX_DROPDOWN_PAIRS.some((f) => f.symbol === selectedSymbol);
 
   const handleThresholdSelect = (val: number) => {
     setMinWallUsd(val);
@@ -109,7 +145,9 @@ export default function App() {
         <div className="mt-6 pt-4 border-t border-slate-800 text-xs font-mono tabular-nums space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Exchange:</span>
-            <span className="text-slate-200">Coinbase Adv</span>
+            <span className="text-slate-200">
+              {isForexSymbol ? 'Pocket Option FX' : 'Coinbase Adv'}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Feed Status:</span>
@@ -208,31 +246,102 @@ export default function App() {
         <main className="flex-1 p-4 md:p-6 space-y-5 overflow-y-auto">
           {/* Workspace Filter & Pair Toolbar */}
           <div className="bg-[#0D131F] border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-mono text-slate-400 mr-1">Pair:</span>
-              {[
-                'BTC/USDT',
-                'ETH/USDT',
-                'XRP/USDT',
-                'SOL/USDT',
-                'BTC/USD',
-                'ETH/USD',
-                'XRP/USD',
-                'SOL/USD'
-              ].map((sym) => (
-                <button
-                  key={sym}
-                  type="button"
-                  onClick={() => setSelectedSymbol(sym)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono transition whitespace-nowrap shrink-0 ${
-                    selectedSymbol === sym
-                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 font-semibold'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Crypto Dropdown (includes Zcash) */}
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="toolbar-crypto-select"
+                  className="text-xs font-mono text-slate-400 whitespace-nowrap"
+                >
+                  Crypto:
+                </label>
+                <select
+                  id="toolbar-crypto-select"
+                  aria-label="Select Crypto Pair"
+                  value={isCommoditySymbol || isForexSymbol ? '' : selectedSymbol}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedSymbol(e.target.value);
+                  }}
+                  className={`bg-slate-900 border rounded px-2.5 py-1 text-xs font-mono cursor-pointer transition ${
+                    !isCommoditySymbol && !isForexSymbol
+                      ? 'border-sky-500/50 text-sky-300 font-semibold'
+                      : 'border-slate-800 text-slate-300'
                   }`}
                 >
-                  {sym}
-                </button>
-              ))}
+                  <option value="" disabled>
+                    -- Select Crypto --
+                  </option>
+                  {CRYPTO_DROPDOWN_PAIRS.map((p) => (
+                    <option key={p.symbol} value={p.symbol}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Separate Commodities Dropdown (Gold, Silver, WTI Oil) */}
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="toolbar-commodity-select"
+                  className="text-xs font-mono text-amber-400/90 whitespace-nowrap"
+                >
+                  Commodities:
+                </label>
+                <select
+                  id="toolbar-commodity-select"
+                  aria-label="Select Commodity"
+                  value={isCommoditySymbol ? selectedSymbol : ''}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedSymbol(e.target.value);
+                  }}
+                  className={`bg-slate-900 border rounded px-2.5 py-1 text-xs font-mono cursor-pointer transition ${
+                    isCommoditySymbol
+                      ? 'border-amber-500/50 text-amber-300 font-semibold'
+                      : 'border-slate-800 text-slate-300'
+                  }`}
+                >
+                  <option value="" disabled>
+                    -- Gold / Silver / WTI Oil --
+                  </option>
+                  {COMMODITY_DROPDOWN_PAIRS.map((c) => (
+                    <option key={c.symbol} value={c.symbol}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Separate Forex Dropdown (Major Currency Pairs integrated with Pocket Option) */}
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="toolbar-forex-select"
+                  className="text-xs font-mono text-emerald-400/90 whitespace-nowrap"
+                >
+                  Forex:
+                </label>
+                <select
+                  id="toolbar-forex-select"
+                  aria-label="Select Forex Pair"
+                  value={isForexSymbol ? selectedSymbol : ''}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedSymbol(e.target.value);
+                  }}
+                  className={`bg-slate-900 border rounded px-2.5 py-1 text-xs font-mono cursor-pointer transition ${
+                    isForexSymbol
+                      ? 'border-emerald-500/50 text-emerald-300 font-semibold'
+                      : 'border-slate-800 text-slate-300'
+                  }`}
+                >
+                  <option value="" disabled>
+                    -- Pocket Option Major FX Pairs --
+                  </option>
+                  {FOREX_DROPDOWN_PAIRS.map((fx) => (
+                    <option key={fx.symbol} value={fx.symbol}>
+                      {fx.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
@@ -272,8 +381,8 @@ export default function App() {
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'Overview' && (
             <div className="space-y-5">
-              {/* Multi-Asset Liquidity Overview Cards (BTC/USDT, ETH/USDT, XRP/USDT, SOL/USDT) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Multi-Asset Crypto Liquidity Overview Cards (BTC, ETH, XRP, SOL, ZEC) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {overviewSymbols.map((sym) => {
                   const t = payload?.pairs?.[sym];
                   const isSelected = selectedSymbol === sym;
@@ -288,8 +397,76 @@ export default function App() {
                           : 'border-slate-800 hover:border-slate-700'
                       }`}
                     >
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className="font-bold text-sm text-white whitespace-nowrap">
+                          {sym}
+                        </span>
+                        <span
+                          className={`text-xs font-mono tabular-nums font-semibold whitespace-nowrap ${
+                            (t?.priceChange24hPct || 0) >= 0
+                              ? 'text-emerald-400'
+                              : 'text-rose-400'
+                          }`}
+                        >
+                          {(t?.priceChange24hPct || 0) >= 0 ? '+' : ''}
+                          {(t?.priceChange24hPct || 0).toFixed(2)}% (24h)
+                        </span>
+                      </div>
+                      <div className="text-xl font-bold font-mono tabular-nums text-slate-100 mb-3">
+                        {formatPrice(t?.livePrice)}
+                      </div>
+                      <div className="space-y-1 text-xs font-mono tabular-nums border-t border-slate-800/80 pt-2.5">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Buy Liquidity:</span>
+                          <span className="text-emerald-400 font-semibold">
+                            ${((t?.totalBuyLiquidityUsd || 0) / 1000).toFixed(1)}K
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Sell Liquidity:</span>
+                          <span className="text-rose-400 font-semibold">
+                            ${((t?.totalSellLiquidityUsd || 0) / 1000).toFixed(1)}K
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Imbalance:</span>
+                          <span
+                            className={`font-semibold ${
+                              (t?.imbalancePct || 0) >= 0
+                                ? 'text-emerald-400'
+                                : 'text-rose-400'
+                            }`}
+                          >
+                            {(t?.imbalancePct || 0) >= 0 ? '+' : ''}
+                            {(t?.imbalancePct || 0).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Commodities Liquidity Overview Cards (Gold, Silver, WTI Oil) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {COMMODITY_DROPDOWN_PAIRS.map((comm) => {
+                  const t = payload?.pairs?.[comm.symbol];
+                  const isSelected = selectedSymbol === comm.symbol;
+                  return (
+                    <button
+                      key={comm.symbol}
+                      type="button"
+                      onClick={() => setSelectedSymbol(comm.symbol)}
+                      className={`text-left bg-[#0D131F] border rounded-xl p-4 transition ${
+                        isSelected
+                          ? 'border-amber-500/60'
+                          : 'border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-sm text-white">{sym}</span>
+                        <span className="font-bold text-sm text-amber-200">
+                          {comm.name} ({comm.symbol})
+                        </span>
                         <span
                           className={`text-xs font-mono tabular-nums font-semibold ${
                             (t?.priceChange24hPct || 0) >= 0
@@ -334,6 +511,76 @@ export default function App() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Major Forex Currency Pairs Overview Cards (Integrated with Pocket Option) */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5 px-1">
+                  <span className="text-xs font-mono font-semibold text-emerald-400">
+                    Forex Major Pairs · Pocket Option Live Integration
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    7 Major FX Pairs · Up to 92% Pocket Option Payout
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                  {FOREX_DROPDOWN_PAIRS.map((fx) => {
+                    const t = payload?.pairs?.[fx.symbol];
+                    const isSelected = selectedSymbol === fx.symbol;
+                    return (
+                      <button
+                        key={fx.symbol}
+                        type="button"
+                        onClick={() => setSelectedSymbol(fx.symbol)}
+                        className={`text-left bg-[#0D131F] border rounded-xl p-3 transition ${
+                          isSelected
+                            ? 'border-emerald-500/60'
+                            : 'border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="font-bold text-xs text-emerald-300 whitespace-nowrap">
+                            {fx.symbol}
+                          </span>
+                          <span className="text-[10px] font-mono text-sky-300 whitespace-nowrap">
+                            {fx.payoutPct}% PO
+                          </span>
+                        </div>
+                        <div className="text-base font-bold font-mono tabular-nums text-slate-100 mb-2">
+                          {formatPrice(t?.livePrice)}
+                        </div>
+                        <div className="space-y-1 text-[11px] font-mono tabular-nums border-t border-slate-800/80 pt-2">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">24h:</span>
+                            <span
+                              className={`font-semibold ${
+                                (t?.priceChange24hPct || 0) >= 0
+                                  ? 'text-emerald-400'
+                                  : 'text-rose-400'
+                              }`}
+                            >
+                              {(t?.priceChange24hPct || 0) >= 0 ? '+' : ''}
+                              {(t?.priceChange24hPct || 0).toFixed(2)}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Imb:</span>
+                            <span
+                              className={`font-semibold ${
+                                (t?.imbalancePct || 0) >= 0
+                                  ? 'text-emerald-400'
+                                  : 'text-rose-400'
+                              }`}
+                            >
+                              {(t?.imbalancePct || 0) >= 0 ? '+' : ''}
+                              {(t?.imbalancePct || 0).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Active Pair Key Institutional Metrics Strip */}
@@ -405,17 +652,14 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: 15M CHART & COINBASE PREDICTION MODULE */}
+          {/* TAB 2: 15M CHART & COINBASE / POCKET OPTION PREDICTION MODULE */}
           {activeTab === '15m Chart' && (
             <Crypto15mPredictionChart
               predictions={payload?.predictions}
               pairs={payload?.pairs}
-              selectedAsset={
-                (selectedSymbol.split('/')[0] as 'BTC' | 'ETH' | 'XRP' | 'SOL') || 'BTC'
-              }
-              onSelectAsset={(asset) => {
-                const quote = selectedSymbol.endsWith('/USD') ? 'USD' : 'USDT';
-                setSelectedSymbol(`${asset}/${quote}`);
+              selectedAsset={symbolToAsset(selectedSymbol)}
+              onSelectAsset={(asset: SupportedCryptoAsset) => {
+                setSelectedSymbol(assetToSymbol(asset, selectedSymbol));
               }}
             />
           )}

@@ -1,26 +1,77 @@
-export type MarketType = 'SPOT' | 'FUTURES';
+export type MarketType = 'SPOT' | 'FUTURES' | 'FOREX';
 export type ConnectionStatus = 'CONNECTED' | 'CONNECTING' | 'RESYNCING' | 'DISCONNECTED' | 'ERROR';
-export type SupportedCryptoAsset = 'BTC' | 'ETH' | 'XRP' | 'SOL';
+export type AssetCategory = 'CRYPTO' | 'COMMODITY' | 'FOREX';
+export type SupportedCryptoOnlyAsset = 'BTC' | 'ETH' | 'XRP' | 'SOL' | 'ZEC';
+export type SupportedCommodityAsset = 'XAU' | 'XAG' | 'WTI';
+export type SupportedForexAsset =
+  | 'EURUSD'
+  | 'GBPUSD'
+  | 'USDJPY'
+  | 'USDCHF'
+  | 'AUDUSD'
+  | 'USDCAD'
+  | 'NZDUSD';
+export type SupportedCryptoAsset =
+  | SupportedCryptoOnlyAsset
+  | SupportedCommodityAsset
+  | SupportedForexAsset;
 
 export interface ProductConfig {
   asset: SupportedCryptoAsset;
+  name: string;
+  category: AssetCategory;
   displaySymbol: string;
   coinbaseProductId: string;
   candleProductId: string;
   marketType: MarketType;
   bucketSize: number;
+  referencePrice: number;
+  exchange?: string;
+  pocketOptionPayoutPct?: number;
 }
 
 export const PRODUCTS_CONFIG: ProductConfig[] = [
-  { asset: 'BTC', displaySymbol: 'BTC/USDT', coinbaseProductId: 'BTC-USDT', candleProductId: 'BTC-USD', marketType: 'SPOT', bucketSize: 25 },
-  { asset: 'ETH', displaySymbol: 'ETH/USDT', coinbaseProductId: 'ETH-USDT', candleProductId: 'ETH-USD', marketType: 'SPOT', bucketSize: 2 },
-  { asset: 'XRP', displaySymbol: 'XRP/USDT', coinbaseProductId: 'XRP-USDT', candleProductId: 'XRP-USD', marketType: 'SPOT', bucketSize: 0.005 },
-  { asset: 'SOL', displaySymbol: 'SOL/USDT', coinbaseProductId: 'SOL-USDT', candleProductId: 'SOL-USD', marketType: 'SPOT', bucketSize: 0.25 },
-  { asset: 'BTC', displaySymbol: 'BTC/USD', coinbaseProductId: 'BTC-USD', candleProductId: 'BTC-USD', marketType: 'SPOT', bucketSize: 25 },
-  { asset: 'ETH', displaySymbol: 'ETH/USD', coinbaseProductId: 'ETH-USD', candleProductId: 'ETH-USD', marketType: 'SPOT', bucketSize: 2 },
-  { asset: 'XRP', displaySymbol: 'XRP/USD', coinbaseProductId: 'XRP-USD', candleProductId: 'XRP-USD', marketType: 'SPOT', bucketSize: 0.005 },
-  { asset: 'SOL', displaySymbol: 'SOL/USD', coinbaseProductId: 'SOL-USD', candleProductId: 'SOL-USD', marketType: 'SPOT', bucketSize: 0.25 }
+  { asset: 'BTC', name: 'Bitcoin', category: 'CRYPTO', displaySymbol: 'BTC/USDT', coinbaseProductId: 'BTC-USDT', candleProductId: 'BTC-USD', marketType: 'SPOT', bucketSize: 25, referencePrice: 91250, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'ETH', name: 'Ethereum', category: 'CRYPTO', displaySymbol: 'ETH/USDT', coinbaseProductId: 'ETH-USDT', candleProductId: 'ETH-USD', marketType: 'SPOT', bucketSize: 2, referencePrice: 3140, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'XRP', name: 'XRP', category: 'CRYPTO', displaySymbol: 'XRP/USDT', coinbaseProductId: 'XRP-USDT', candleProductId: 'XRP-USD', marketType: 'SPOT', bucketSize: 0.005, referencePrice: 1.48, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'SOL', name: 'Solana', category: 'CRYPTO', displaySymbol: 'SOL/USDT', coinbaseProductId: 'SOL-USDT', candleProductId: 'SOL-USD', marketType: 'SPOT', bucketSize: 0.25, referencePrice: 194.5, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'ZEC', name: 'Zcash', category: 'CRYPTO', displaySymbol: 'ZEC/USDT', coinbaseProductId: 'ZEC-USDT', candleProductId: 'ZEC-USD', marketType: 'SPOT', bucketSize: 0.15, referencePrice: 44.8, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'BTC', name: 'Bitcoin', category: 'CRYPTO', displaySymbol: 'BTC/USD', coinbaseProductId: 'BTC-USD', candleProductId: 'BTC-USD', marketType: 'SPOT', bucketSize: 25, referencePrice: 91250, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'ETH', name: 'Ethereum', category: 'CRYPTO', displaySymbol: 'ETH/USD', coinbaseProductId: 'ETH-USD', candleProductId: 'ETH-USD', marketType: 'SPOT', bucketSize: 2, referencePrice: 3140, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'XRP', name: 'XRP', category: 'CRYPTO', displaySymbol: 'XRP/USD', coinbaseProductId: 'XRP-USD', candleProductId: 'XRP-USD', marketType: 'SPOT', bucketSize: 0.005, referencePrice: 1.48, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'SOL', name: 'Solana', category: 'CRYPTO', displaySymbol: 'SOL/USD', coinbaseProductId: 'SOL-USD', candleProductId: 'SOL-USD', marketType: 'SPOT', bucketSize: 0.25, referencePrice: 194.5, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'ZEC', name: 'Zcash', category: 'CRYPTO', displaySymbol: 'ZEC/USD', coinbaseProductId: 'ZEC-USD', candleProductId: 'ZEC-USD', marketType: 'SPOT', bucketSize: 0.15, referencePrice: 44.8, exchange: 'Coinbase Advanced Trade' },
+  { asset: 'XAU', name: 'Gold', category: 'COMMODITY', displaySymbol: 'XAU/USD', coinbaseProductId: 'XAU-USD', candleProductId: 'PAXG-USD', marketType: 'FUTURES', bucketSize: 2.0, referencePrice: 2684.5, exchange: 'Coinbase Derivatives' },
+  { asset: 'XAG', name: 'Silver', category: 'COMMODITY', displaySymbol: 'XAG/USD', coinbaseProductId: 'XAG-USD', candleProductId: 'XAG-USD', marketType: 'FUTURES', bucketSize: 0.05, referencePrice: 31.45, exchange: 'Coinbase Derivatives' },
+  { asset: 'WTI', name: 'WTI Oil', category: 'COMMODITY', displaySymbol: 'WTI/USD', coinbaseProductId: 'WTI-USD', candleProductId: 'WTI-USD', marketType: 'FUTURES', bucketSize: 0.1, referencePrice: 69.25, exchange: 'Coinbase Derivatives' },
+  { asset: 'EURUSD', name: 'Euro / US Dollar', category: 'FOREX', displaySymbol: 'EUR/USD', coinbaseProductId: 'EUR-USD-FX', candleProductId: 'EUR-USD-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 1.0845, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 92 },
+  { asset: 'GBPUSD', name: 'British Pound / US Dollar', category: 'FOREX', displaySymbol: 'GBP/USD', coinbaseProductId: 'GBP-USD-FX', candleProductId: 'GBP-USD-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 1.2965, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 92 },
+  { asset: 'USDJPY', name: 'US Dollar / Japanese Yen', category: 'FOREX', displaySymbol: 'USD/JPY', coinbaseProductId: 'USD-JPY-FX', candleProductId: 'USD-JPY-FX', marketType: 'FOREX', bucketSize: 0.05, referencePrice: 154.35, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 91 },
+  { asset: 'USDCHF', name: 'US Dollar / Swiss Franc', category: 'FOREX', displaySymbol: 'USD/CHF', coinbaseProductId: 'USD-CHF-FX', candleProductId: 'USD-CHF-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 0.8815, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 89 },
+  { asset: 'AUDUSD', name: 'Australian Dollar / US Dollar', category: 'FOREX', displaySymbol: 'AUD/USD', coinbaseProductId: 'AUD-USD-FX', candleProductId: 'AUD-USD-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 0.6585, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 90 },
+  { asset: 'USDCAD', name: 'US Dollar / Canadian Dollar', category: 'FOREX', displaySymbol: 'USD/CAD', coinbaseProductId: 'USD-CAD-FX', candleProductId: 'USD-CAD-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 1.3915, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 88 },
+  { asset: 'NZDUSD', name: 'New Zealand Dollar / US Dollar', category: 'FOREX', displaySymbol: 'NZD/USD', coinbaseProductId: 'NZD-USD-FX', candleProductId: 'NZD-USD-FX', marketType: 'FOREX', bucketSize: 0.001, referencePrice: 0.5965, exchange: 'Pocket Option FX', pocketOptionPayoutPct: 87 }
 ];
+
+export function symbolToAsset(symbol: string): SupportedCryptoAsset {
+  const matched = PRODUCTS_CONFIG.find((p) => p.displaySymbol === symbol);
+  if (matched) return matched.asset;
+  return (symbol.split('/')[0] as SupportedCryptoAsset) || 'BTC';
+}
+
+export function assetToSymbol(
+  asset: SupportedCryptoAsset,
+  currentSymbol?: string
+): string {
+  const matched = PRODUCTS_CONFIG.filter((p) => p.asset === asset);
+  if (matched.length === 0) return 'BTC/USDT';
+  if (matched.length === 1) return matched[0].displaySymbol;
+  if (currentSymbol && currentSymbol.endsWith('/USD') && !currentSymbol.includes('USDT')) {
+    const usdMatch = matched.find((m) => m.displaySymbol.endsWith('/USD'));
+    if (usdMatch) return usdMatch.displaySymbol;
+  }
+  return matched[0].displaySymbol;
+}
 
 export interface PriceLevel {
   price: number;

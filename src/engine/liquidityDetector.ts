@@ -58,7 +58,7 @@ export class LiquidityDetector {
         telemetry: {
           symbol: book.displaySymbol,
           productId: book.productId,
-          exchange: 'Coinbase Advanced Trade',
+          exchange: book.exchange,
           marketType: book.marketType,
           synchronized: false,
           sequenceNum: book.lastSequenceNum,
@@ -168,7 +168,7 @@ export class LiquidityDetector {
             newAlerts.push({
               id: crypto.randomUUID(),
               timestamp: nowIso,
-              exchange: 'Coinbase Advanced Trade',
+              exchange: book.exchange,
               symbol: book.displaySymbol,
               type: 'WALL_MOVED',
               severity: 'WARNING',
@@ -181,7 +181,7 @@ export class LiquidityDetector {
             newAlerts.push({
               id: crypto.randomUUID(),
               timestamp: nowIso,
-              exchange: 'Coinbase Advanced Trade',
+              exchange: book.exchange,
               symbol: book.displaySymbol,
               type: side === 'BUY' ? 'BUY_WALL_APPEARED' : 'SELL_WALL_APPEARED',
               severity: lvl.usdValue >= this.minWallThresholdUsd * 4 ? 'CRITICAL' : 'INFO',
@@ -215,7 +215,7 @@ export class LiquidityDetector {
         detectedWalls.push({
           id: tracked.id,
           symbol: book.displaySymbol,
-          exchange: 'Coinbase Advanced Trade',
+          exchange: book.exchange,
           marketType: book.marketType,
           side,
           price: lvl.price,
@@ -247,7 +247,7 @@ export class LiquidityDetector {
           newAlerts.push({
             id: crypto.randomUUID(),
             timestamp: nowIso,
-            exchange: 'Coinbase Advanced Trade',
+            exchange: book.exchange,
             symbol: book.displaySymbol,
             type: 'WALL_DISAPPEARED',
             severity: 'WARNING',
@@ -374,7 +374,7 @@ export class LiquidityDetector {
           newAlerts.push({
             id: crypto.randomUUID(),
             timestamp: nowIso,
-            exchange: 'Coinbase Advanced Trade',
+            exchange: book.exchange,
             symbol: book.displaySymbol,
             type: 'PRICE_NEAR_CLUSTER',
             severity: 'INFO',
@@ -398,7 +398,7 @@ export class LiquidityDetector {
           newAlerts.push({
             id: crypto.randomUUID(),
             timestamp: nowIso,
-            exchange: 'Coinbase Advanced Trade',
+            exchange: book.exchange,
             symbol: book.displaySymbol,
             type: 'LIQUIDITY_SURGE',
             severity: 'INFO',
@@ -410,7 +410,7 @@ export class LiquidityDetector {
           newAlerts.push({
             id: crypto.randomUUID(),
             timestamp: nowIso,
-            exchange: 'Coinbase Advanced Trade',
+            exchange: book.exchange,
             symbol: book.displaySymbol,
             type: 'LIQUIDITY_DRAIN',
             severity: 'WARNING',
@@ -424,7 +424,7 @@ export class LiquidityDetector {
         newAlerts.push({
           id: crypto.randomUUID(),
           timestamp: nowIso,
-          exchange: 'Coinbase Advanced Trade',
+          exchange: book.exchange,
           symbol: book.displaySymbol,
           type: 'ORDERBOOK_IMBALANCE',
           severity: 'WARNING',
@@ -455,7 +455,7 @@ export class LiquidityDetector {
       telemetry: {
         symbol: book.displaySymbol,
         productId: book.productId,
-        exchange: 'Coinbase Advanced Trade',
+        exchange: book.exchange,
         marketType: book.marketType,
         synchronized: true,
         sequenceNum: book.lastSequenceNum,

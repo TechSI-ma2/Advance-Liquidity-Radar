@@ -1,5 +1,5 @@
 import { PRODUCTS_CONFIG } from '../types/radar.ts';
-import type { PriceLevel } from '../types/radar.ts';
+import type { MarketType, PriceLevel } from '../types/radar.ts';
 
 export interface RawLevelUpdate {
   side: 'bid' | 'offer' | 'ask' | 'buy' | 'sell';
@@ -11,8 +11,9 @@ export interface RawLevelUpdate {
 export class SynchronizedOrderBook {
   public readonly displaySymbol: string;
   public readonly productId: string;
-  public readonly marketType: 'SPOT' | 'FUTURES';
+  public readonly marketType: MarketType;
   public readonly bucketSize: number;
+  public readonly exchange: string;
 
   private bids: Map<number, number> = new Map();
   private asks: Map<number, number> = new Map();
@@ -28,11 +29,18 @@ export class SynchronizedOrderBook {
     resetAt: Date.now()
   };
 
-  constructor(displaySymbol: string, productId: string, marketType: 'SPOT' | 'FUTURES', bucketSize: number) {
+  constructor(
+    displaySymbol: string,
+    productId: string,
+    marketType: MarketType,
+    bucketSize: number,
+    exchange: string = 'Coinbase Advanced Trade'
+  ) {
     this.displaySymbol = displaySymbol;
     this.productId = productId;
     this.marketType = marketType;
     this.bucketSize = bucketSize;
+    this.exchange = exchange;
   }
 
   public applySnapshot(updates: RawLevelUpdate[], sequenceNum: number, timestamp: string): void {
@@ -183,7 +191,8 @@ export class OrderBookManager {
         prod.displaySymbol,
         prod.coinbaseProductId,
         prod.marketType,
-        prod.bucketSize
+        prod.bucketSize,
+        prod.exchange || 'Coinbase Advanced Trade'
       );
       this.booksByProductId.set(prod.coinbaseProductId, book);
       this.booksByDisplaySymbol.set(prod.displaySymbol, book);
