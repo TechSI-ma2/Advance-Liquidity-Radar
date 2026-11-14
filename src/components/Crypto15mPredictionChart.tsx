@@ -492,15 +492,37 @@ export const Crypto15mPredictionChart: React.FC<Props> = ({
 
           {pred && (
             <div className="flex flex-wrap items-center gap-6 pl-4 border-l border-slate-800 font-mono tabular-nums">
-              <div>
+              <div data-testid="last-closed-price-block">
                 <div className="text-xs text-slate-400">
-                  {isForexSelected ? 'Pocket Option Live Rate' : 'Coinbase Live Price'}
+                  {isForexSelected
+                    ? 'Pocket Option Last Closed Price'
+                    : 'Coinbase Last Closed Price'}
+                </div>
+                <div
+                  data-testid="last-closed-price-value"
+                  className={`text-lg font-bold flex items-center gap-1.5 ${
+                    pred.lastClosedTrend === 'DOWN'
+                      ? 'text-rose-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
+                  <span>{formatPrice(pred.lastClosedPrice)}</span>
+                  <span className="text-xs font-semibold">
+                    {pred.lastClosedTrend === 'DOWN' ? '▼' : '▲'}{' '}
+                    {pred.lastClosedChangePct >= 0 ? '+' : ''}
+                    {pred.lastClosedChangePct.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+              <div data-testid="live-price-block">
+                <div className="text-xs text-slate-400">
+                  {isForexSelected ? 'Pocket Option Live Price' : 'Coinbase Live Price'}
                 </div>
                 <div className="text-lg font-bold text-white">
                   {formatPrice(pred.livePrice)}
                 </div>
               </div>
-              <div>
+              <div data-testid="predicted-next-close-block">
                 <div className="text-xs text-slate-400">Predicted Next 15m Close</div>
                 <div
                   className={`text-lg font-bold ${

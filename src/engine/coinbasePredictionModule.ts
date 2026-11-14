@@ -37,6 +37,7 @@ const COINBASE_EXCHANGE_REST_URL =
 
 export class CoinbasePredictionModule {
   private candlesByAsset: Map<SupportedCryptoAsset, Map<number, Candle15m>> = new Map();
+  private usesSyntheticCandles: Set<SupportedCryptoAsset> = new Set();
   private tradeFlowByAsset: Map<
     SupportedCryptoAsset,
     { buyUsd: number; sellUsd: number; windowStartMs: number }
@@ -70,20 +71,31 @@ export class CoinbasePredictionModule {
     const candleMap = this.candlesByAsset.get(asset);
     if (!candleMap || candleMap.size > 0) return;
 
+    this.usesSyntheticCandles.add(asset);
     const nowSec = Math.floor(Date.now() / 1000);
     const currentBucket = Math.floor(nowSec / 900) * 900;
     const decimals = referencePrice < 10 ? 4 : 2;
     let prevClose = referencePrice * 0.996;
+    const seedOffset =
+      asset.split('').reduce((acc, ch, idx) => acc + ch.charCodeAt(0) * (idx + 1), 0) * 0.43;
 
     for (let i = 96; i >= 0; i--) {
       const time = currentBucket - i * 900;
-      const phase = i * 0.37 + referencePrice * 0.13 + asset.charCodeAt(0) * 0.2;
-      const drift = Math.sin(phase) * referencePrice * 0.0018 + Math.cos(phase * 0.6) * referencePrice * 0.001;
+      const phase = i * 0.49 + seedOffset;
+      let drift =
+        Math.sin(phase) * referencePrice * 0.0022 +
+        Math.cos(phase * 0.7) * referencePrice * 0.0012;
+      if (Math.abs(drift) < Math.pow(10, -decimals)) {
+        drift = (Math.sin(phase) >= 0 ? 1 : -1) * Math.pow(10, -decimals) * 2;
+      }
       const open = Number(prevClose.toFixed(decimals));
-      const close = Number(Math.max(0.01, open + drift).toFixed(decimals));
+      let close = Number(Math.max(0.0001, open + drift).toFixed(decimals));
+      if (close === open) {
+        close = Number((open + (drift >= 0 ? 1 : -1) * Math.pow(10, -decimals)).toFixed(decimals));
+      }
       const wickSpan = Math.abs(drift) * 0.75 + referencePrice * 0.001;
       const high = Number((Math.max(open, close) + wickSpan).toFixed(decimals));
-      const low = Number(Math.max(0.01, Math.min(open, close) - wickSpan).toFixed(decimals));
+      const low = Number(Math.max(0.0001, Math.min(open, close) - wickSpan).toFixed(decimals));
       const volume = Number((120 + ((i * 53) % 190) + Math.abs(Math.sin(phase)) * 140).toFixed(2));
 
       candleMap.set(time, { time, open, high, low, close, volume });
@@ -124,6 +136,8 @@ export class CoinbasePredictionModule {
       if (res.ok) {
         const rows = (await res.json()) as Array<[number, number, number, number, number, number]>;
         if (Array.isArray(rows) && rows.length > 0) {
+          this.usesSyntheticCandles.delete(asset);
+          candleMap.clear();
           for (const r of rows) {
             const [time, low, high, open, close, volume] = r;
             candleMap.set(time, { time, low, high, open, close, volume });
@@ -152,6 +166,8 @@ export class CoinbasePredictionModule {
           }>;
         };
         if (Array.isArray(data.candles) && data.candles.length > 0) {
+          this.usesSyntheticCandles.delete(asset);
+          candleMap.clear();
           for (const c of data.candles) {
             const time = parseInt(c.start, 10);
             candleMap.set(time, {
@@ -177,6 +193,7 @@ export class CoinbasePredictionModule {
   public seedCandlesForAsset(asset: SupportedCryptoAsset, candles: Candle15m[]): void {
     const candleMap = this.candlesByAsset.get(asset);
     if (!candleMap) return;
+    this.usesSyntheticCandles.delete(asset);
     for (const c of candles) {
       candleMap.set(c.time, { ...c });
     }
@@ -211,6 +228,30 @@ export class CoinbasePredictionModule {
 
     const nowSec = Math.floor(Date.now() / 1000);
     const bucketStart = Math.floor(nowSec / 900) * 900;
+
+    // If synthetic fallback candles differ from live market rate by >0.8%, rescale synthetic history to live anchor
+    if (this.usesSyntheticCandles.has(prefix) && candleMap.size > 0) {
+      const latestCandle = candleMap.get(bucketStart) || Array.from(candleMap.values()).pop();
+      if (latestCandle && latestCandle.close > 0) {
+        const diffRatio = Math.abs(price - latestCandle.close) / latestCandle.close;
+        if (diffRatio > 0.008) {
+          const scale = price / latestCandle.close;
+          const decimals = price < 10 ? 4 : 2;
+          for (const c of candleMap.values()) {
+            c.open = Number((c.open * scale).toFixed(decimals));
+            c.high = Number((c.high * scale).toFixed(decimals));
+            c.low = Number((c.low * scale).toFixed(decimals));
+            let scaledClose = Number((c.close * scale).toFixed(decimals));
+            if (scaledClose === c.open) {
+              scaledClose = Number(
+                (c.open + (c.close >= c.open ? 1 : -1) * Math.pow(10, -decimals)).toFixed(decimals)
+              );
+            }
+            c.close = scaledClose;
+          }
+        }
+      }
+    }
 
     const existing = candleMap.get(bucketStart);
     if (!existing) {
@@ -281,6 +322,30 @@ export class CoinbasePredictionModule {
       pairTelemetry?.livePrice && pairTelemetry.livePrice > 0
         ? pairTelemetry.livePrice
         : lastCandle?.close || 0;
+
+    // Identify the most recently completed (closed) 15m candle
+    const closedCandle =
+      sortedCandles.length >= 2 && lastCandle && lastCandle.time >= currentCandleStart
+        ? sortedCandles[sortedCandles.length - 2]
+        : lastCandle;
+    const prevClosedCandle =
+      sortedCandles.length >= 3 && lastCandle && lastCandle.time >= currentCandleStart
+        ? sortedCandles[sortedCandles.length - 3]
+        : sortedCandles.length >= 2
+        ? sortedCandles[sortedCandles.length - 2]
+        : closedCandle;
+
+    const lastClosedPrice = closedCandle?.close || livePrice;
+    const priorComparisonPrice =
+      closedCandle && closedCandle.close !== closedCandle.open
+        ? closedCandle.open
+        : prevClosedCandle && prevClosedCandle.close !== lastClosedPrice
+        ? prevClosedCandle.close
+        : lastClosedPrice * 0.999;
+    const closedDelta = lastClosedPrice - priorComparisonPrice;
+    const lastClosedTrend: 'UP' | 'DOWN' = closedDelta >= 0 ? 'UP' : 'DOWN';
+    const lastClosedChangePct =
+      priorComparisonPrice > 0 ? (closedDelta / priorComparisonPrice) * 100 : 0;
 
     const k9 = 2 / (9 + 1);
     const k21 = 2 / (21 + 1);
@@ -450,6 +515,9 @@ export class CoinbasePredictionModule {
       exchange: isForex ? 'Pocket Option FX' : 'Coinbase Advanced Trade',
       granularity: '15m',
       lastUpdated: new Date().toISOString(),
+      lastClosedPrice,
+      lastClosedChangePct,
+      lastClosedTrend,
       livePrice,
       currentCandleStart,
       secondsRemainingInCandle,

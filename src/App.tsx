@@ -78,6 +78,7 @@ export default function App() {
     useLiquidityStream(browserPushEnabled);
 
   const activeTelemetry = payload?.pairs?.[selectedSymbol];
+  const activePrediction = payload?.predictions?.[symbolToAsset(selectedSymbol)];
   const overviewSymbols = ['BTC/USDT', 'ETH/USDT', 'XRP/USDT', 'SOL/USDT', 'ZEC/USDT'];
   const isCommoditySymbol = COMMODITY_DROPDOWN_PAIRS.some((c) => c.symbol === selectedSymbol);
   const isForexSymbol = FOREX_DROPDOWN_PAIRS.some((f) => f.symbol === selectedSymbol);
@@ -193,28 +194,49 @@ export default function App() {
       {/* Main Content Viewport */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar Contract: Context Breadcrumb on Left, Primary Controls on Right */}
-        <header className="flex items-center justify-between gap-8 px-6 py-3.5 bg-[#0D131F] border-b border-slate-800">
+        <header className="flex items-center justify-between gap-6 px-6 py-3.5 bg-[#0D131F] border-b border-slate-800">
           <div className="text-sm font-semibold text-slate-100 whitespace-nowrap shrink-0">
             {activeTab} · {selectedSymbol}
           </div>
 
-          <div className="hidden lg:flex items-center gap-6 text-xs font-mono tabular-nums text-slate-300">
+          <div className="hidden lg:flex items-center gap-5 text-xs font-mono tabular-nums text-slate-300">
             <span>
-              Live Price:{' '}
+              {isForexSymbol
+                ? 'Pocket Option Last Closed:'
+                : 'Coinbase Last Closed:'}{' '}
+              <strong
+                className={
+                  activePrediction?.lastClosedTrend === 'DOWN'
+                    ? 'text-rose-400'
+                    : 'text-emerald-400'
+                }
+              >
+                {formatPrice(activePrediction?.lastClosedPrice)}{' '}
+                {activePrediction
+                  ? activePrediction.lastClosedTrend === 'DOWN'
+                    ? '▼'
+                    : '▲'
+                  : ''}
+              </strong>
+            </span>
+            <span>
+              {isForexSymbol ? 'Pocket Option Live:' : 'Coinbase Live Price:'}{' '}
               <strong className="text-white">
                 {formatPrice(activeTelemetry?.livePrice)}
               </strong>
             </span>
             <span>
-              Buy Depth:{' '}
-              <strong className="text-emerald-400">
-                ${((activeTelemetry?.totalBuyLiquidityUsd || 0) / 1000).toFixed(0)}K
-              </strong>
-            </span>
-            <span>
-              Sell Depth:{' '}
-              <strong className="text-rose-400">
-                ${((activeTelemetry?.totalSellLiquidityUsd || 0) / 1000).toFixed(0)}K
+              Predicted Next 15m Close:{' '}
+              <strong
+                className={
+                  activePrediction?.bias === 'BULLISH'
+                    ? 'text-emerald-400'
+                    : activePrediction?.bias === 'BEARISH'
+                    ? 'text-rose-400'
+                    : 'text-sky-400'
+                }
+              >
+                {formatPrice(activePrediction?.predictedNext15mClose)}
               </strong>
             </span>
             <span>
@@ -385,6 +407,7 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {overviewSymbols.map((sym) => {
                   const t = payload?.pairs?.[sym];
+                  const pred = payload?.predictions?.[symbolToAsset(sym)];
                   const isSelected = selectedSymbol === sym;
                   return (
                     <button
@@ -412,23 +435,55 @@ export default function App() {
                           {(t?.priceChange24hPct || 0).toFixed(2)}% (24h)
                         </span>
                       </div>
-                      <div className="text-xl font-bold font-mono tabular-nums text-slate-100 mb-3">
-                        {formatPrice(t?.livePrice)}
+                      <div className="space-y-1 text-[11px] font-mono tabular-nums mb-2.5">
+                        <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                          <span className="text-slate-400">CB Last Close:</span>
+                          <span
+                            className={`font-bold ${
+                              pred?.lastClosedTrend === 'DOWN'
+                                ? 'text-rose-400'
+                                : 'text-emerald-400'
+                            }`}
+                          >
+                            {formatPrice(pred?.lastClosedPrice)}{' '}
+                            {pred ? (pred.lastClosedTrend === 'DOWN' ? '▼' : '▲') : ''}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                          <span className="text-slate-400">CB Live Price:</span>
+                          <span className="font-bold text-slate-100">
+                            {formatPrice(t?.livePrice)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                          <span className="text-slate-400">Next 15m Close:</span>
+                          <span
+                            className={`font-bold ${
+                              pred?.bias === 'BULLISH'
+                                ? 'text-emerald-400'
+                                : pred?.bias === 'BEARISH'
+                                ? 'text-rose-400'
+                                : 'text-sky-400'
+                            }`}
+                          >
+                            {formatPrice(pred?.predictedNext15mClose)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="space-y-1 text-xs font-mono tabular-nums border-t border-slate-800/80 pt-2.5">
-                        <div className="flex justify-between">
+                      <div className="space-y-1 text-[11px] font-mono tabular-nums border-t border-slate-800/80 pt-2">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Buy Liquidity:</span>
                           <span className="text-emerald-400 font-semibold">
                             ${((t?.totalBuyLiquidityUsd || 0) / 1000).toFixed(1)}K
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Sell Liquidity:</span>
                           <span className="text-rose-400 font-semibold">
                             ${((t?.totalSellLiquidityUsd || 0) / 1000).toFixed(1)}K
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Imbalance:</span>
                           <span
                             className={`font-semibold ${
@@ -451,6 +506,7 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {COMMODITY_DROPDOWN_PAIRS.map((comm) => {
                   const t = payload?.pairs?.[comm.symbol];
+                  const pred = payload?.predictions?.[symbolToAsset(comm.symbol)];
                   const isSelected = selectedSymbol === comm.symbol;
                   return (
                     <button
@@ -464,11 +520,11 @@ export default function App() {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-sm text-amber-200">
+                        <span className="font-bold text-sm text-amber-200 whitespace-nowrap">
                           {comm.name} ({comm.symbol})
                         </span>
                         <span
-                          className={`text-xs font-mono tabular-nums font-semibold ${
+                          className={`text-xs font-mono tabular-nums font-semibold whitespace-nowrap ${
                             (t?.priceChange24hPct || 0) >= 0
                               ? 'text-emerald-400'
                               : 'text-rose-400'
@@ -478,23 +534,55 @@ export default function App() {
                           {(t?.priceChange24hPct || 0).toFixed(2)}% (24h)
                         </span>
                       </div>
-                      <div className="text-xl font-bold font-mono tabular-nums text-slate-100 mb-3">
-                        {formatPrice(t?.livePrice)}
+                      <div className="space-y-1 text-xs font-mono tabular-nums mb-2.5">
+                        <div className="flex justify-between items-center whitespace-nowrap">
+                          <span className="text-slate-400">Coinbase Last Closed:</span>
+                          <span
+                            className={`font-bold ${
+                              pred?.lastClosedTrend === 'DOWN'
+                                ? 'text-rose-400'
+                                : 'text-emerald-400'
+                            }`}
+                          >
+                            {formatPrice(pred?.lastClosedPrice)}{' '}
+                            {pred ? (pred.lastClosedTrend === 'DOWN' ? '▼' : '▲') : ''}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center whitespace-nowrap">
+                          <span className="text-slate-400">Coinbase Live Price:</span>
+                          <span className="font-bold text-slate-100">
+                            {formatPrice(t?.livePrice)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center whitespace-nowrap">
+                          <span className="text-slate-400">Predicted Next 15m Close:</span>
+                          <span
+                            className={`font-bold ${
+                              pred?.bias === 'BULLISH'
+                                ? 'text-emerald-400'
+                                : pred?.bias === 'BEARISH'
+                                ? 'text-rose-400'
+                                : 'text-sky-400'
+                            }`}
+                          >
+                            {formatPrice(pred?.predictedNext15mClose)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="space-y-1 text-xs font-mono tabular-nums border-t border-slate-800/80 pt-2.5">
-                        <div className="flex justify-between">
+                      <div className="space-y-1 text-xs font-mono tabular-nums border-t border-slate-800/80 pt-2">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Buy Liquidity:</span>
                           <span className="text-emerald-400 font-semibold">
                             ${((t?.totalBuyLiquidityUsd || 0) / 1000).toFixed(1)}K
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Sell Liquidity:</span>
                           <span className="text-rose-400 font-semibold">
                             ${((t?.totalSellLiquidityUsd || 0) / 1000).toFixed(1)}K
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between whitespace-nowrap">
                           <span className="text-slate-400">Imbalance:</span>
                           <span
                             className={`font-semibold ${
@@ -526,6 +614,7 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                   {FOREX_DROPDOWN_PAIRS.map((fx) => {
                     const t = payload?.pairs?.[fx.symbol];
+                    const pred = payload?.predictions?.[symbolToAsset(fx.symbol)];
                     const isSelected = selectedSymbol === fx.symbol;
                     return (
                       <button
@@ -538,7 +627,7 @@ export default function App() {
                             : 'border-slate-800 hover:border-slate-700'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-1 mb-1">
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
                           <span className="font-bold text-xs text-emerald-300 whitespace-nowrap">
                             {fx.symbol}
                           </span>
@@ -546,11 +635,43 @@ export default function App() {
                             {fx.payoutPct}% PO
                           </span>
                         </div>
-                        <div className="text-base font-bold font-mono tabular-nums text-slate-100 mb-2">
-                          {formatPrice(t?.livePrice)}
+                        <div className="space-y-1 text-[10px] font-mono tabular-nums mb-2">
+                          <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                            <span className="text-slate-400">PO Close:</span>
+                            <span
+                              className={`font-bold ${
+                                pred?.lastClosedTrend === 'DOWN'
+                                  ? 'text-rose-400'
+                                  : 'text-emerald-400'
+                              }`}
+                            >
+                              {formatPrice(pred?.lastClosedPrice)}
+                              {pred ? (pred.lastClosedTrend === 'DOWN' ? '▼' : '▲') : ''}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                            <span className="text-slate-400">PO Live:</span>
+                            <span className="font-bold text-slate-100">
+                              {formatPrice(t?.livePrice)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center gap-1 whitespace-nowrap">
+                            <span className="text-slate-400">Next 15m:</span>
+                            <span
+                              className={`font-bold ${
+                                pred?.bias === 'BULLISH'
+                                  ? 'text-emerald-400'
+                                  : pred?.bias === 'BEARISH'
+                                  ? 'text-rose-400'
+                                  : 'text-sky-400'
+                              }`}
+                            >
+                              {formatPrice(pred?.predictedNext15mClose)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="space-y-1 text-[11px] font-mono tabular-nums border-t border-slate-800/80 pt-2">
-                          <div className="flex justify-between">
+                        <div className="space-y-1 text-[10px] font-mono tabular-nums border-t border-slate-800/80 pt-1.5">
+                          <div className="flex justify-between whitespace-nowrap">
                             <span className="text-slate-400">24h:</span>
                             <span
                               className={`font-semibold ${
@@ -563,7 +684,7 @@ export default function App() {
                               {(t?.priceChange24hPct || 0).toFixed(2)}%
                             </span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between whitespace-nowrap">
                             <span className="text-slate-400">Imb:</span>
                             <span
                               className={`font-semibold ${

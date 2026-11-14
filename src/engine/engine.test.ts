@@ -118,6 +118,11 @@ test('OrderBookManager and CoinbasePredictionModule support Zcash (ZEC), Commodi
     assert.equal(pred.bullishProbabilityPct + pred.bearishProbabilityPct, 100);
     assert.ok(pred.candles.length >= 20);
     assert.ok(pred.livePrice > 0);
+    assert.ok(pred.lastClosedPrice > 0, `Last closed price should be positive for ${fx.asset}`);
+    assert.ok(
+      pred.lastClosedTrend === 'UP' || pred.lastClosedTrend === 'DOWN',
+      `Last closed trend should be UP or DOWN for ${fx.asset}`
+    );
   }
 
   for (const asset of ['ZEC', 'XAU', 'XAG', 'WTI'] as const) {
@@ -127,7 +132,33 @@ test('OrderBookManager and CoinbasePredictionModule support Zcash (ZEC), Commodi
     assert.equal(pred.bullishProbabilityPct + pred.bearishProbabilityPct, 100);
     assert.ok(pred.candles.length >= 20, `Candles should be seeded for ${asset}`);
     assert.ok(pred.livePrice > 0, `Live price should be positive for ${asset}`);
+    assert.ok(pred.lastClosedPrice > 0, `Last closed price should be positive for ${asset}`);
+    assert.ok(
+      pred.lastClosedTrend === 'UP' || pred.lastClosedTrend === 'DOWN',
+      `Last closed trend should be UP or DOWN for ${asset}`
+    );
   }
+
+  // Verify explicit UP trend and DOWN trend detection on last closed candle
+  const nowBucket = Math.floor(Date.now() / 1000 / 900) * 900;
+  mod.seedCandlesForAsset('ETH', [
+    { time: nowBucket - 1800, open: 3100, high: 3120, low: 3090, close: 3110, volume: 100 },
+    { time: nowBucket - 900, open: 3110, high: 3150, low: 3105, close: 3145, volume: 120 },
+    { time: nowBucket, open: 3145, high: 3155, low: 3140, close: 3150, volume: 40 }
+  ]);
+  const ethUpPred = mod.computeAssetPrediction('ETH', 'ETH-USD');
+  assert.equal(ethUpPred.lastClosedPrice, 3145);
+  assert.equal(ethUpPred.lastClosedTrend, 'UP');
+
+  mod.seedCandlesForAsset('ETH', [
+    { time: nowBucket - 1800, open: 3100, high: 3120, low: 3090, close: 3110, volume: 100 },
+    { time: nowBucket - 900, open: 3110, high: 3115, low: 3070, close: 3080, volume: 120 },
+    { time: nowBucket, open: 3080, high: 3085, low: 3075, close: 3078, volume: 40 }
+  ]);
+  const ethDownPred = mod.computeAssetPrediction('ETH', 'ETH-USD');
+  assert.equal(ethDownPred.lastClosedPrice, 3080);
+  assert.equal(ethDownPred.lastClosedTrend, 'DOWN');
 });
+
 
 

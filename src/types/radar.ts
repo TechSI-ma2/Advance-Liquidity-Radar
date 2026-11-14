@@ -182,6 +182,9 @@ export interface CoinbasePredictionTelemetry {
   exchange: string;
   granularity: '15m';
   lastUpdated: string;
+  lastClosedPrice: number;
+  lastClosedChangePct: number;
+  lastClosedTrend: 'UP' | 'DOWN';
   livePrice: number;
   currentCandleStart: number;
   secondsRemainingInCandle: number;
